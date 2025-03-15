@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from AdjQuat import utils
 from AdjQuat import solutions
-from AdjQuat import LHM
+# from AdjQuat import LHM
 
 ### 2D SIMULATORS
 
@@ -24,6 +24,8 @@ def generate_data(replicates,size,error):
         xy_set.append(xy)
         R_set.append(rot2)
     
+    
+    print(R_set.shape, xy_set.shape, U_set.shape)
     return np.array([ R_set, xy_set, U_set ])
 
 def get_lsq_from_datasets(datasets):
@@ -60,13 +62,13 @@ def generate_data_3D(replicates,size,error):
         quat = quat/np.sqrt(quat.dot(quat))#has to be normalized
         
         rot = utils.quat_to_rot(quat)
-        U =utils. make_U3(xyz,quat,error)
+        U, _ = utils.make_U3(xyz,quat,error)
         
         U_set.append(U)
         xyz_set.append(xyz)
         R_set.append(rot)
     
-    return np.array([ R_set, xyz_set, U_set ])
+    return R_set, xyz_set, U_set 
 
 def get_lsq_from_3Ddatasets(datasets):
     R_set = []
