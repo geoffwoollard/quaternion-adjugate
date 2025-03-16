@@ -165,6 +165,7 @@ def procrustes_wasserstein_2d_3d_svd(
         # Update rotation using SVD
         Rxy_estimate = Y.T @ transport_plan.T @ X
         U, _, Vh = torch.linalg.svd(Rxy_estimate, full_matrices=True)
+        print('shapes', U.shape, Vh.shape,)
         Rxy_projected = U[:,:2] @ Vh
         # ensure_determinant_one = torch.ones(d).to(X.dtype)
         # ensure_determinant_one[-1] = torch.det(U @ Vh)  # ensure no flipping. see
