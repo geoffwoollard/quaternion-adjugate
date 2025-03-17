@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from pyro.distributions import ProjectedNormal
 from AdjQuat import utils
 from AdjQuat import solutions
 # from AdjQuat import LHM
@@ -50,16 +51,19 @@ def get_lsq_from_datasets(datasets):
 
 ### 3D SIMULATORS
     
-def generate_data_3D(replicates,size,error):
+def generate_data_3D(replicates,size,error, concentration=None):
 
     U_set = []
     xyz_set = []
     R_set = []
 
-    for i in range(replicates):
+    for _ in range(replicates):
         xyz = torch.randn(size, 3, dtype=torch.double)
-        quat = np.random.uniform(-1,1,4) 
-        quat = quat/np.sqrt(quat.dot(quat))#has to be normalized
+        if concentration is None:
+            quat = np.random.uniform(-1,1,4) 
+            quat = quat/np.sqrt(quat.dot(quat))#has to be normalized
+        else:
+            quat = ProjectedNormal(concentration).sample().numpy()
         
         rot = utils.quat_to_rot(quat)
         U, _ = utils.make_U3(xyz,quat,error)

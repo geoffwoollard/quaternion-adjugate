@@ -54,7 +54,7 @@ def procrustes_wasserstein_2d_3d_dram(
     rotation = torch.eye(d3).to(xyz.dtype)
 
     logs = []
-    xyz_permuted = xyz
+    xyz_permuted = xyz.clone()
     UV0 = torch.cat([UV, torch.zeros(n, 1)], dim=1)
     for idx in range(max_iter):
         xyz_permuted_R = xyz_permuted @ rotation.T
@@ -67,7 +67,7 @@ def procrustes_wasserstein_2d_3d_dram(
 
         # Solve optimal transport problem using EMD to get point correspondence
         transport_plan, log = ot.emd(p, q, cost.numpy(), log=True)
-        xyz_permuted = torch.from_numpy(transport_plan) @ xyz_permuted
+        xyz_permuted = torch.from_numpy(transport_plan) @ xyz
         if n == m:
             point_norm = torch.norm(UV - xyz_permuted@ rotation.T[:,:d2])
         
@@ -83,12 +83,13 @@ def procrustes_wasserstein_2d_3d_dram(
         logs.append(log)
 
         rotation_new = solutions.make_M_opt_rot(xyz_permuted.numpy(),UV.numpy())
+        rotation = rotation_new
 
         if len(logs) > 1:
             if np.linalg.norm(log["cost"] - logs[-2]["cost"]) < tol:
                 return transport_plan, rotation, logs
 
-        rotation = rotation_new
+        
 
     return transport_plan, rotation, logs
 
@@ -165,7 +166,7 @@ def procrustes_wasserstein_2d_3d_svd(
         # Update rotation using SVD
         Rxy_estimate = Y.T @ transport_plan.T @ X
         U, _, Vh = torch.linalg.svd(Rxy_estimate, full_matrices=True)
-        print('shapes', U.shape, Vh.shape,)
+        assert Vh.shape == (d2,d2)
         Rxy_projected = U[:,:2] @ Vh
         # ensure_determinant_one = torch.ones(d).to(X.dtype)
         # ensure_determinant_one[-1] = torch.det(U @ Vh)  # ensure no flipping. see
