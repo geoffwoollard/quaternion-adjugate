@@ -54,22 +54,22 @@ def procrustes_wasserstein_2d_3d_dram(
     rotation = torch.eye(d3).to(xyz.dtype)
 
     logs = []
-    xyz_permuted = xyz.clone()
     UV0 = torch.cat([UV, torch.zeros(n, 1)], dim=1)
     for idx in range(max_iter):
-        xyz_permuted_R = xyz_permuted @ rotation.T
+        xyz_R = xyz @ rotation.T
         if cost_d == 3:
-            cost = cost_3d = torch.cdist(UV0, xyz_permuted_R[:,:d3], p=2) ** 2
+            cost = cost_3d = torch.cdist(UV0, xyz_R[:,:d3], p=2) ** 2
         elif cost_d == 2:
-            cost = cost_2d = torch.cdist(UV, xyz_permuted_R[:,:d2], p=2) ** 2
+            cost = cost_2d = torch.cdist(UV, xyz_R[:,:d2], p=2) ** 2
         else:
             raise ValueError("cost_d must be 2 or 3")
 
         # Solve optimal transport problem using EMD to get point correspondence
         transport_plan, log = ot.emd(p, q, cost.numpy(), log=True)
         xyz_permuted = torch.from_numpy(transport_plan) @ xyz
+        xyz_permuted_R = xyz_permuted @ rotation.T
         if n == m:
-            point_norm = torch.norm(UV - xyz_permuted@ rotation.T[:,:d2])
+            point_norm = torch.norm(UV - xyz_permuted_R[:,:d2])
         
         if verbose_log:
             log["transport_plan"] = transport_plan
