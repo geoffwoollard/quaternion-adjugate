@@ -165,15 +165,20 @@ def procrustes_wasserstein_2d_3d_svd(
 
         # Update rotation using SVD
         Rxy_estimate = Y.T @ transport_plan.T @ X
-        U, _, Vh = torch.linalg.svd(Rxy_estimate, full_matrices=True)
+        U, _, Vh = torch.linalg.svd(Rxy_estimate, full_matrices=False)
         assert Vh.shape == (d2,d2)
         Rxy_projected = U[:,:2] @ Vh
-        # ensure_determinant_one = torch.ones(d).to(X.dtype)
-        # ensure_determinant_one[-1] = torch.det(U @ Vh)  # ensure no flipping. see
-        # rotation_new = U @ torch.diag(ensure_determinant_one) @ Vh
+        if not torch.allclose(Rxy_projected.T @ Rxy_projected, torch.eye(2).to(Rxy_projected.dtype)):
+            print('Re-orthogonalize the first two columns (Gram-Schmidt)')
+            Rxy_projected[:,1] -= (torch.dot(Rxy_projected[:, 0], Rxy_projected[:, 1]) / 
+                                    torch.dot(Rxy_projected[:, 0], Rxy_projected[:, 0])) * Rxy_projected[:, 0]
+            Rxy_projected[:,1] /= torch.norm(Rxy_projected[:,1])
 
-        Rz_est = torch.linalg.cross(Rxy_projected[:,0],Rxy_projected[:,1])
-        rotation_new = torch.cat([Rxy_projected, Rz_est.reshape(3,1)], dim=1)
+
+        Rz_est = torch.cross(Rxy_projected[:, 0], Rxy_projected[:, 1])
+        if torch.det(torch.cat([Rxy_projected, Rz_est.unsqueeze(1)], dim=1)) < 0:
+            Rz_est = -Rz_est  # Flip to maintain a proper rotation
+        rotation_new = torch.cat([Rxy_projected, Rz_est.unsqueeze(1)], dim=1)
 
         if len(logs) > 1:
             if np.linalg.norm(log["cost"] - logs[-2]["cost"]) < tol:
