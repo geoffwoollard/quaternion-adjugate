@@ -95,7 +95,7 @@ def procrustes_wasserstein_2d_3d_dram_prob(
             del log["v"]
         logs.append(log)
 
-        rotation_new = solutions.make_M_opt_rot_prob(xyz_R.numpy(),UV.numpy(), transport_plan.T)
+        rotation_new = solutions.make_M_opt_rot_prob(xyz.numpy(),UV.numpy(), transport_plan.T)
         rotation = rotation_new.astype(UV.numpy().dtype)
 
         if len(logs) > 1:
