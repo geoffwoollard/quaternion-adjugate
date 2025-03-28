@@ -5,6 +5,110 @@ from typing import Tuple
 from AdjQuat import solutions
 
 
+def procrustes_wasserstein_2d_3d_dram_prob(
+    xyz: torch.Tensor,
+    UV: torch.Tensor,
+    max_iter: int = 10,
+    tol: float = 1e-10,
+    verbose_log: bool = False,
+    cost_d: int = 2,
+    UV_ditribution: torch.Tensor = None,
+    xyz_distribution: torch.Tensor = None,
+) -> Tuple[np.ndarray, torch.Tensor, list]:
+    """Solves the Procrustes-Wasserstein problem using DRaM (corrected).
+
+    Iteratively optimizes the rotation and point correspondence between two point sets X and Y, with weights p and q, respectively.
+
+    Parameters:
+    -----------
+    X : A matrix of size n x 3, where n is the number of points and d is the dimensionality of the points.
+    Y : A matrix of size m x 2, where m is the number of points and d is the dimensionality of the points.
+    max_iter : Maximum number of iterations.
+    tol : Tolerance for convergence.
+
+    Notes:
+    ------
+
+    transport_plan does not need to be square. It is a matrix of size n x m, where n is the number of points in X and m is the number of points in Y.
+
+    the ensure_determinant_one is a trick to ensure that the determinant of the rotation matrix is 1. This is important to avoid flipping. See ref [3] for details.
+
+    Implements Algorithm 1 from [1]
+    See [2] for details on ensure_determinant_one
+
+    [1] Adamo, D., Corneli, M., Vuillien, M., Vila, E., Adamo, D., Corneli, M., … Vila, E. (2025).
+    An in depth look at the Procrustes-Wasserstein distance: properties and barycenters, 0–21.
+
+    [2] Levinson, J., Esteves, C., Chen, K., Snavely, N., Kanazawa, A., Rostamizadeh, A., & Makadia, A. (2020).
+    An analysis of SVD for deep rotation estimation. Advances in Neural Information Processing Systems, 2020-Decem(3), 1–18.
+
+    [3] Levinson, J., Esteves, C., Chen, K., Snavely, N., Kanazawa, A., Rostamizadeh, A., & Makadia, A. (2020).
+    An Analysis of SVD for Deep Rotation Estimation. Proceedings of the 34th International Conference on Neural Information Processing Systems, (3), 1–12.
+    http://doi.org/10.5555/3495724.3497615
+    """
+    n, d2 = UV.shape
+    m, d3 = xyz.shape
+    assert d2 == 2
+    assert d3 == 3
+    if UV_ditribution is None:
+        p = torch.ones(n, dtype=UV.dtype) / n
+    else:
+        p = UV_ditribution
+    if xyz_distribution is None:
+        q = torch.ones(m, dtype=UV.dtype) / m
+    else:
+        q = xyz_distribution
+
+
+    rotation = torch.eye(d3).to(xyz.dtype)
+
+    logs = []
+    UV0 = torch.cat([UV, torch.zeros(n, 1)], dim=1)
+    for idx in range(max_iter):
+        print(f'Iteration {idx}')
+        xyz_R = xyz @ rotation.T
+        if cost_d == 3:
+            cost = cost_3d = torch.cdist(UV0, xyz_R[:,:d3], p=2) ** 2
+        elif cost_d == 2:
+            cost = cost_2d = torch.cdist(UV, xyz_R[:,:d2], p=2) ** 2
+        else:
+            raise ValueError("cost_d must be 2 or 3")
+
+
+        # Solve optimal transport problem using EMD to get point correspondence
+        transport_plan, log = ot.emd(p.numpy(), q.numpy(), cost.numpy(), log=True)
+        # weighted_norm = 0.0
+        # for idx_n in range(n):
+        #     for idx_m in range(m):
+        #         weighted_norm += (UV[idx_n] - xyz_R[idx_m,:d2]).norm() * transport_plan[idx_n, idx_m]
+        diffs = UV[:, None, :] - xyz_R[None, :, :d2]  # Shape: (n, m, d2)
+        norms = torch.norm(diffs, dim=2)  # Shape: (n, m)
+        weighted_norm = torch.sum(norms * transport_plan)  # Scalar result
+
+        if verbose_log:
+            log["transport_plan"] = transport_plan
+            log["R"] = rotation
+            log['point_norm'] = weighted_norm
+
+        else:
+            del log["u"]  # free up space
+            del log["v"]
+        logs.append(log)
+
+        rotation_new = solutions.make_M_opt_rot_prob(xyz_R.numpy(),UV.numpy(), transport_plan.T)
+        rotation = rotation_new.astype(UV.numpy().dtype)
+
+        if len(logs) > 1:
+            if np.linalg.norm(log["cost"] - logs[-2]["cost"]) < tol:
+                return transport_plan, rotation, logs
+
+        
+
+    return transport_plan, rotation, logs
+
+
+
+
 def procrustes_wasserstein_2d_3d_dram(
     xyz: torch.Tensor,
     UV: torch.Tensor,
