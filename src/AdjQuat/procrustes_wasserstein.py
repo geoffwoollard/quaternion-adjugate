@@ -14,6 +14,7 @@ def procrustes_wasserstein_2d_3d_dram_prob(
     cost_d: int = 2,
     UV_ditribution: torch.Tensor = None,
     xyz_distribution: torch.Tensor = None,
+    emd_kwargs: dict = {},
 ) -> Tuple[np.ndarray, torch.Tensor, list]:
     """Solves the Procrustes-Wasserstein problem using DRaM (corrected).
 
@@ -76,7 +77,7 @@ def procrustes_wasserstein_2d_3d_dram_prob(
 
 
         # Solve optimal transport problem using EMD to get point correspondence
-        transport_plan, log = ot.emd(p.numpy(), q.numpy(), cost.numpy(), log=True)
+        transport_plan, log = ot.emd(p.numpy(), q.numpy(), cost.numpy(), log=True, **emd_kwargs)
         # weighted_norm = 0.0
         # for idx_n in range(n):
         #     for idx_m in range(m):
@@ -116,6 +117,7 @@ def procrustes_wasserstein_2d_3d_dram(
     tol: float = 1e-10,
     verbose_log: bool = False,
     cost_d: int = 2,
+    emd_kwargs: dict = {},
 ) -> Tuple[np.ndarray, torch.Tensor, list]:
     """Solves the Procrustes-Wasserstein problem using DRaM (corrected).
 
@@ -169,7 +171,7 @@ def procrustes_wasserstein_2d_3d_dram(
             raise ValueError("cost_d must be 2 or 3")
 
         # Solve optimal transport problem using EMD to get point correspondence
-        transport_plan, log = ot.emd(p, q, cost.numpy(), log=True)
+        transport_plan, log = ot.emd(p, q, cost.numpy(), log=True, **emd_kwargs)
         xyz_permuted = torch.from_numpy(transport_plan) @ xyz
         xyz_permuted_R = xyz_permuted @ rotation.T
         if n == m:
