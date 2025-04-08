@@ -97,7 +97,7 @@ def procrustes_wasserstein_2d_3d_dram_prob(
         logs.append(log)
 
         rotation_new = solutions.make_M_opt_rot_prob(xyz.numpy(),UV.numpy(), transport_plan.T)
-        rotation = rotation_new.astype(UV.numpy().dtype)
+        rotation = torch.from_numpy(rotation_new).to(UV.dtype)
 
         if len(logs) > 1:
             if np.linalg.norm(log["cost"] - logs[-2]["cost"]) < tol:
