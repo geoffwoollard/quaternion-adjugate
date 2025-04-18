@@ -57,7 +57,7 @@ def make_dets_prob(xyz,U,joint_distribution):
     mu_xyz = joint_distribution.sum(1)
     mu_U = joint_distribution.sum(0)
     weighted_xyz = xyz*mu_xyz[:,None]
-    XX = xyz.T[0].dot(weighted_xyz.T[0]) # TODO: check if this is correct. only weight one of the vectors?
+    XX = xyz.T[0].dot(weighted_xyz.T[0])
     XY = xyz.T[0].dot(weighted_xyz.T[1])
     XZ = xyz.T[0].dot(weighted_xyz.T[2])
 
